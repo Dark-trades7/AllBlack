@@ -2,9 +2,9 @@ local _ENV = (getgenv or getrenv or getfenv)()
 local CURRENT_VERSION = _ENV.Version or "V3"
 
 local Versions = {
-	V1 = "https://github.com/TlDinhKhoi/AllBlack/raw/refs/heads/main/Version/V1.lua",
-	V2 = "https://github.com/TlDinhKhoi/AllBlack/raw/refs/heads/main/Version/V2.lua",
-	V3 = "https://github.com/TlDinhKhoi/AllBlack/raw/refs/heads/main/Version/V3.lua",
+	V1 = "https://github.com/TlDinhKhoi/Xeter/raw/refs/heads/main/Version/V1.lua",
+	V2 = "https://github.com/TlDinhKhoi/Xeter/raw/refs/heads/main/Version/V2.lua",
+	V3 = "https://github.com/TlDinhKhoi/Xeter/raw/refs/heads/main/Version/V3.lua",
 }
 
 do
