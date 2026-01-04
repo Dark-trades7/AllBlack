@@ -1,6 +1,6 @@
 -- =========================
 -- 🌑 NightShadow Hub v1.8
--- Auto Win (NPC) + Auto Kill + Auto Rebirth + Fly + Jump + Speed
+-- Auto Win (NPC) + Kill Aura + Auto Rebirth + Fly + Jump + Speed
 -- =========================
 
 -- SERVIÇOS
@@ -36,6 +36,7 @@ local tpConnection
 local npcList = {}
 local npcIndex = 1
 local searchRadius = 500
+local npcHeightOffset = 6 -- altura acima do NPC (proteção)
 
 local function getNearbyNPCs()
     local list = {}
@@ -66,49 +67,76 @@ local function getNearbyNPCs()
 end
 
 -- =========================
--- AUTO KILL
+-- KILL AURA (HITBOX)
 -- =========================
-local autoKill = false
-local killDistance = 8
-local attackDelay = 0.15
-local lastAttack = 0
+local killAura = false
+local auraRadius = 10
+local auraDamageDelay = 0.25
+local lastAuraHit = {}
+local auraPart
+local auraConnection
 
-local function getTool()
-    if char then
-        for _, v in pairs(char:GetChildren()) do
-            if v:IsA("Tool") then
-                return v
-            end
-        end
-    end
+local function createAura()
+    if auraPart or not hrp then return end
 
-    for _, v in pairs(player.Backpack:GetChildren()) do
-        if v:IsA("Tool") then
-            humanoid:EquipTool(v)
-            return v
-        end
-    end
+    auraPart = Instance.new("Part")
+    auraPart.Name = "KillAura"
+    auraPart.Size = Vector3.new(auraRadius, auraRadius * 1.5, auraRadius)
+    auraPart.Transparency = 1
+    auraPart.CanCollide = false
+    auraPart.Massless = true
+    auraPart.Parent = workspace
+
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = auraPart
+    weld.Part1 = hrp
+    weld.Parent = auraPart
 end
 
-local function tryKillNPC(npcRoot)
-    if not autoKill or not npcRoot or not npcRoot.Parent then return end
-
-    local npcHumanoid = npcRoot.Parent:FindFirstChild("Humanoid")
-    if not npcHumanoid or npcHumanoid.Health <= 0 then return end
-
-    if (npcRoot.Position - hrp.Position).Magnitude > killDistance then return end
-
-    local tool = getTool()
-    if not tool then return end
-
-    if tick() - lastAttack >= attackDelay then
-        lastAttack = tick()
-        pcall(function()
-            tool:Activate()
-        end)
+local function removeAura()
+    if auraConnection then
+        auraConnection:Disconnect()
+        auraConnection = nil
     end
+    if auraPart then
+        auraPart:Destroy()
+        auraPart = nil
+    end
+    lastAuraHit = {}
 end
 
+local function onAuraTouch(hit)
+    if not killAura then return end
+
+    local model = hit:FindFirstAncestorOfClass("Model")
+    if not model or model == char then return end
+
+    local hum = model:FindFirstChild("Humanoid")
+    if not hum or hum.Health <= 0 then return end
+
+    local now = tick()
+    if lastAuraHit[hum] and now - lastAuraHit[hum] < auraDamageDelay then
+        return
+    end
+    lastAuraHit[hum] = now
+
+    pcall(function()
+        hum:TakeDamage(10)
+    end)
+end
+
+local function startKillAura()
+    createAura()
+    auraConnection = auraPart.Touched:Connect(onAuraTouch)
+end
+
+local function stopKillAura()
+    removeAura()
+end
+
+-- =========================
+-- AUTO WIN LOOP
+-- =========================
 local function startTP()
     if tpConnection then return end
 
@@ -123,8 +151,15 @@ local function startTP()
 
         local npcRoot = npcList[npcIndex]
         if npcRoot and npcRoot.Parent then
-            hrp.CFrame = npcRoot.CFrame * CFrame.new(0, 0, -2)
-            tryKillNPC(npcRoot)
+            -- TP acima do NPC olhando para ele
+            hrp.CFrame = CFrame.new(
+                npcRoot.Position + Vector3.new(0, npcHeightOffset, 0),
+                npcRoot.Position
+            )
+
+            -- trava movimento para não cair / knockback
+            hrp.AssemblyLinearVelocity = Vector3.zero
+
             npcIndex += 1
         else
             npcIndex += 1
@@ -239,11 +274,12 @@ tpButton.MouseButton1Click:Connect(function()
     if tpEnabled then startTP() else stopTP() end
 end)
 
-local killBtn = createButton("AUTO KILL: OFF", 100)
-killBtn.MouseButton1Click:Connect(function()
-    autoKill = not autoKill
-    killBtn.Text = autoKill and "AUTO KILL: ON" or "AUTO KILL: OFF"
-    killBtn.BackgroundColor3 = autoKill and Color3.fromRGB(0,170,0) or Color3.fromRGB(35,35,35)
+local auraBtn = createButton("KILL AURA: OFF", 100)
+auraBtn.MouseButton1Click:Connect(function()
+    killAura = not killAura
+    auraBtn.Text = killAura and "KILL AURA: ON" or "KILL AURA: OFF"
+    auraBtn.BackgroundColor3 = killAura and Color3.fromRGB(0,170,0) or Color3.fromRGB(35,35,35)
+    if killAura then startKillAura() else stopKillAura() end
 end)
 
 local rebBtn = createButton("AUTO REBIRTH: OFF", 150)
@@ -277,53 +313,4 @@ local function startFly()
     end)
 end
 
-local function stopFly()
-    if flyConn then flyConn:Disconnect() flyConn = nil end
-    humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-end
-
-flyButton.MouseButton1Click:Connect(function()
-    flying = not flying
-    flyButton.Text = flying and "FLY: ON (100)" or "FLY: OFF"
-    flyButton.BackgroundColor3 = flying and Color3.fromRGB(0,170,0) or Color3.fromRGB(35,35,35)
-    if flying then startFly() else stopFly() end
-end)
-
--- INFINITE JUMP
-local infJumpButton = createButton("INFINITE JUMP: OFF", 250)
-local infJump = false
-
-UserInputService.JumpRequest:Connect(function()
-    if infJump and humanoid then
-        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-    end
-end)
-
-infJumpButton.MouseButton1Click:Connect(function()
-    infJump = not infJump
-    infJumpButton.Text = infJump and "INFINITE JUMP: ON" or "INFINITE JUMP: OFF"
-    infJumpButton.BackgroundColor3 = infJump and Color3.fromRGB(0,170,0) or Color3.fromRGB(35,35,35)
-end)
-
--- SPEED
-local speedButton = createButton("SPEED: 100", 300)
-local speeds = {50,100,150,200,250,300}
-local index = 2
-
-speedButton.MouseButton1Click:Connect(function()
-    index += 1
-    if index > #speeds then index = 1 end
-    humanoid.WalkSpeed = speeds[index]
-    speedButton.Text = "SPEED: "..speeds[index]
-end)
-
--- RESET AO MORRER
-humanoid.Died:Connect(function()
-    humanoid.WalkSpeed = 16
-    flying = false
-    infJump = false
-    autoRebirth = false
-    autoKill = false
-    stopFly()
-    stopTP()
-end)
+local function stopF
