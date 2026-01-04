@@ -1,3 +1,9 @@
+-- =========================
+-- 🌑 NightShadow Hub v1.8
+-- Auto Win (NPC) + Kill Aura + Auto Rebirth + Fly + Jump + Speed
+-- Delta Executor Friendly
+-- =========================
+
 -- SERVIÇOS
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -6,7 +12,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 
+-- =========================
 -- PERSONAGEM
+-- =========================
 local function getChar()
     local c = player.Character or player.CharacterAdded:Wait()
     return c,
@@ -21,7 +29,8 @@ player.CharacterAdded:Connect(function()
     humanoid.WalkSpeed = 16
 end)
 
--- CONFIGURAÇÕES
+-- =========================
+-- CONFIGURAÇÕES AUTO WIN / KILL AURA
 local tpEnabled = false
 local tpConnection
 local npcList = {}
@@ -36,14 +45,15 @@ local lastAuraHit = {}
 local auraPart
 local auraConnection
 
--- ========================= GUI
+-- =========================
+-- GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "NightShadowHub"
-gui.Parent = player:WaitForChild("PlayerGui") -- Delta suporta PlayerGui
+gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 260, 0, 200)
-frame.Position = UDim2.new(0, 20, 0.5, -100)
+frame.Size = UDim2.new(0, 260, 0, 380)
+frame.Position = UDim2.new(0, 20, 0.5, -190)
 frame.BackgroundColor3 = Color3.fromRGB(18,18,18)
 frame.BorderSizePixel = 0
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
@@ -60,7 +70,8 @@ local function createButton(text, y)
     return b
 end
 
--- ========================= AUTO WIN
+-- =========================
+-- AUTO WIN
 local function getNearbyNPCs()
     local list = {}
     if not hrp then return list end
@@ -93,7 +104,7 @@ local function startTP()
         local npcRoot = npcList[npcIndex]
         if npcRoot and npcRoot.Parent then
             hrp.CFrame = CFrame.new(npcRoot.Position + Vector3.new(0,npcHeightOffset,0), npcRoot.Position)
-            hrp.Velocity = Vector3.zero -- Delta seguro
+            hrp.Velocity = Vector3.zero
             npcIndex += 1
         else
             npcIndex += 1
@@ -108,7 +119,8 @@ local function stopTP()
     end
 end
 
--- ========================= KILL AURA
+-- =========================
+-- KILL AURA
 local function createAura()
     if auraPart or not hrp then return end
     auraPart = Instance.new("Part")
@@ -160,7 +172,8 @@ local function stopKillAura()
     removeAura()
 end
 
--- ========================= AUTO REBIRTH
+-- =========================
+-- AUTO REBIRTH
 local autoRebirth = false
 local lastWins = player:GetAttribute("Wins") or 0
 local rebirthRemote
@@ -184,7 +197,71 @@ task.spawn(function()
     end
 end)
 
--- ========================= BOTÕES
+-- =========================
+-- FLY
+local flyButton = createButton("FLY: OFF", 170)
+local flying = false
+local flyConn
+local flySpeed = 100
+
+local function startFly()
+    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+    flyConn = RunService.RenderStepped:Connect(function()
+        if not flying or not hrp then return end
+        local cam = workspace.CurrentCamera
+        local move = Vector3.zero
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0,1,0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then move -= Vector3.new(0,1,0) end
+        hrp.Velocity = move.Magnitude > 0 and move.Unit * flySpeed or Vector3.zero
+    end)
+end
+
+local function stopFly()
+    if flyConn then flyConn:Disconnect() flyConn=nil end
+    humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+end
+
+flyButton.MouseButton1Click:Connect(function()
+    flying = not flying
+    flyButton.Text = flying and "FLY: ON" or "FLY: OFF"
+    flyButton.BackgroundColor3 = flying and Color3.fromRGB(0,170,0) or Color3.fromRGB(35,35,35)
+    if flying then startFly() else stopFly() end
+end)
+
+-- =========================
+-- INFINITE JUMP
+local infJumpButton = createButton("INFINITE JUMP: OFF", 220)
+local infJump = false
+UserInputService.JumpRequest:Connect(function()
+    if infJump and humanoid then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+infJumpButton.MouseButton1Click:Connect(function()
+    infJump = not infJump
+    infJumpButton.Text = infJump and "INFINITE JUMP: ON" or "INFINITE JUMP: OFF"
+    infJumpButton.BackgroundColor3 = infJump and Color3.fromRGB(0,170,0) or Color3.fromRGB(35,35,35)
+end)
+
+-- =========================
+-- SPEED
+local speedButton = createButton("SPEED: 100", 270)
+local speeds = {50,100,150,200,250,300}
+local index = 2
+speedButton.MouseButton1Click:Connect(function()
+    index += 1
+    if index > #speeds then index = 1 end
+    humanoid.WalkSpeed = speeds[index]
+    speedButton.Text = "SPEED: "..speeds[index]
+end)
+
+-- =========================
+-- AUTO WIN / KILL AURA / REBIRTH BOTÕES
 local tpBtn = createButton("AUTO WIN: OFF", 20)
 tpBtn.MouseButton1Click:Connect(function()
     tpEnabled = not tpEnabled
@@ -208,12 +285,16 @@ rebBtn.MouseButton1Click:Connect(function()
     rebBtn.BackgroundColor3 = autoRebirth and Color3.fromRGB(0,170,0) or Color3.fromRGB(35,35,35)
 end)
 
--- ========================= RESET AO MORRER
+-- =========================
+-- RESET AO MORRER
 humanoid.Died:Connect(function()
     humanoid.WalkSpeed = 16
+    flying = false
+    infJump = false
+    autoRebirth = false
     killAura = false
     tpEnabled = false
-    autoRebirth = false
+    stopFly()
     stopTP()
     stopKillAura()
 end)
