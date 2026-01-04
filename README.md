@@ -1,5 +1,5 @@
 -- =========================
--- 🌑 NightShadow Hub - Executor Delta
+-- 🌑 NightShadow Hub - Executor Delta Melhorado
 -- Auto Farm + Kill Aura + Fly + Infinite Jump + Speed + NPC ESP
 -- =========================
 
@@ -31,6 +31,10 @@ local farmHeight = 6
 
 local flying = false
 local flySpeed = 80
+local flyVelocity = Instance.new("BodyVelocity")
+flyVelocity.MaxForce = Vector3.new(1e5,1e5,1e5)
+flyVelocity.Velocity = Vector3.zero
+flyVelocity.Parent = hrp
 
 local infJump = false
 local speeds = {16,50,100,200}
@@ -64,14 +68,22 @@ local function createButton(text, y)
 end
 
 -- =========================
--- FUNÇÕES DE NPC
+-- FUNÇÕES DE NPC (adaptável)
+local npcFolderName = "NPCs" -- mude para o nome real da pasta de NPCs do jogo
+
+local function getNPCs()
+    if workspace:FindFirstChild(npcFolderName) then
+        return workspace[npcFolderName]:GetChildren()
+    end
+    return {}
+end
+
 local function getClosestNPC()
-    if not workspace:FindFirstChild("NPCs") then return nil end
     local closest, dist = nil, math.huge
-    for _, npc in pairs(workspace.NPCs:GetChildren()) do
-        local hum = npc:FindFirstChild("Humanoid")
+    for _, npc in pairs(getNPCs()) do
         local root = npc:FindFirstChild("HumanoidRootPart")
-        if hum and root and hum.Health > 0 then
+        local hum = npc:FindFirstChild("Humanoid")
+        if root and hum and hum.Health > 0 then
             local d = (root.Position - hrp.Position).Magnitude
             if d < dist then
                 dist = d
@@ -88,10 +100,7 @@ RunService.Heartbeat:Connect(function()
     if autoFarm and hrp then
         local npc = getClosestNPC()
         if npc and npc:FindFirstChild("HumanoidRootPart") then
-            local targetPos = npc.HumanoidRootPart.Position + Vector3.new(0,farmHeight,0)
-            local tween = TweenService:Create(hrp, TweenInfo.new(0.1), {CFrame = CFrame.new(targetPos, npc.HumanoidRootPart.Position)})
-            tween:Play()
-            hrp.Velocity = Vector3.zero
+            hrp.CFrame = CFrame.new(npc.HumanoidRootPart.Position + Vector3.new(0,farmHeight,0), npc.HumanoidRootPart.Position)
         end
     end
 end)
@@ -100,13 +109,14 @@ end)
 -- KILL AURA
 task.spawn(function()
     while task.wait(auraDelay) do
-        if killAura and workspace:FindFirstChild("NPCs") then
-            for _, npc in pairs(workspace.NPCs:GetChildren()) do
+        if killAura then
+            for _, npc in pairs(getNPCs()) do
                 local hum = npc:FindFirstChild("Humanoid")
                 local root = npc:FindFirstChild("HumanoidRootPart")
                 if hum and root and hum.Health > 0 then
                     if (root.Position - hrp.Position).Magnitude <= auraRadius then
-                        hum:TakeDamage(auraDamage)
+                        -- Método genérico: reduzir saúde do Humanoid diretamente
+                        hum.Health = hum.Health - auraDamage
                     end
                 end
             end
@@ -115,7 +125,7 @@ task.spawn(function()
 end)
 
 -- =========================
--- FLY
+-- FLY (BodyVelocity)
 RunService.RenderStepped:Connect(function()
     if flying and hrp then
         local cam = workspace.CurrentCamera
@@ -125,11 +135,9 @@ RunService.RenderStepped:Connect(function()
         if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - cam.CFrame.RightVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + cam.CFrame.RightVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0,1,0) end
-        if move.Magnitude > 0 then
-            hrp.Velocity = move.Unit * flySpeed
-        else
-            hrp.Velocity = Vector3.zero
-        end
+        flyVelocity.Velocity = move.Magnitude > 0 and move.Unit * flySpeed or Vector3.zero
+    else
+        flyVelocity.Velocity = Vector3.zero
     end
 end)
 
@@ -145,22 +153,20 @@ end)
 -- NPC ESP
 RunService.RenderStepped:Connect(function()
     if npcESPEnabled then
-        if workspace:FindFirstChild("NPCs") then
-            for _, npc in pairs(workspace.NPCs:GetChildren()) do
-                if not espBoxes[npc] and npc:FindFirstChild("HumanoidRootPart") then
-                    local box = Instance.new("BillboardGui", npc)
-                    box.Name = "ESPBox"
-                    box.Size = UDim2.new(0,50,0,50)
-                    box.Adornee = npc.HumanoidRootPart
-                    box.AlwaysOnTop = true
-                    local txt = Instance.new("TextLabel", box)
-                    txt.Text = npc.Name
-                    txt.TextScaled = true
-                    txt.BackgroundTransparency = 1
-                    txt.Size = UDim2.new(1,0,1,0)
-                    txt.TextColor3 = Color3.new(1,0,0)
-                    espBoxes[npc] = box
-                end
+        for _, npc in pairs(getNPCs()) do
+            if not espBoxes[npc] and npc:FindFirstChild("HumanoidRootPart") then
+                local box = Instance.new("BillboardGui", npc)
+                box.Name = "ESPBox"
+                box.Size = UDim2.new(0,50,0,50)
+                box.Adornee = npc.HumanoidRootPart
+                box.AlwaysOnTop = true
+                local txt = Instance.new("TextLabel", box)
+                txt.Text = npc.Name
+                txt.TextScaled = true
+                txt.BackgroundTransparency = 1
+                txt.Size = UDim2.new(1,0,1,0)
+                txt.TextColor3 = Color3.new(1,0,0)
+                espBoxes[npc] = box
             end
         end
     else
