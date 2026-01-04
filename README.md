@@ -1,7 +1,7 @@
 -- =========================
--- 🌑 NightShadow Hub v1.8
--- Auto Win (NPC) + Kill Aura + Auto Rebirth + Fly + Jump + Speed
+-- 🌑 NightShadow Hub v2.0
 -- Delta Executor Friendly
+-- Auto Win + Kill Aura + Auto Rebirth + Fly + Infinite Jump + Speed
 -- =========================
 
 -- SERVIÇOS
@@ -30,7 +30,7 @@ player.CharacterAdded:Connect(function()
 end)
 
 -- =========================
--- CONFIGURAÇÕES AUTO WIN / KILL AURA
+-- CONFIGURAÇÕES
 local tpEnabled = false
 local tpConnection
 local npcList = {}
@@ -40,10 +40,18 @@ local npcHeightOffset = 6 -- altura acima do NPC
 
 local killAura = false
 local auraRadius = 10
-local auraDamageDelay = 0.25
-local lastAuraHit = {}
-local auraPart
-local auraConnection
+local auraDelay = 0.25
+local lastHit = {}
+
+local autoRebirth = false
+local lastWins = player:GetAttribute("Wins") or 0
+local rebirthRemote
+for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+    if v:IsA("RemoteEvent") and v.Name:lower():find("rebirth") then
+        rebirthRemote = v
+        break
+    end
+end
 
 -- =========================
 -- GUI
@@ -120,70 +128,30 @@ local function stopTP()
 end
 
 -- =========================
--- KILL AURA
-local function createAura()
-    if auraPart or not hrp then return end
-    auraPart = Instance.new("Part")
-    auraPart.Size = Vector3.new(auraRadius, auraRadius*1.5, auraRadius)
-    auraPart.Transparency = 1
-    auraPart.CanCollide = false
-    auraPart.Massless = true
-    auraPart.Anchored = false
-    auraPart.Parent = workspace
-
-    local weld = Instance.new("WeldConstraint")
-    weld.Part0 = auraPart
-    weld.Part1 = hrp
-    weld.Parent = auraPart
-end
-
-local function removeAura()
-    if auraConnection then
-        auraConnection:Disconnect()
-        auraConnection = nil
+-- KILL AURA FUNCIONAL
+task.spawn(function()
+    while task.wait(auraDelay) do
+        if not killAura or not hrp then continue end
+        for _, npc in pairs(workspace:GetDescendants()) do
+            if npc:IsA("Model") and npc ~= char and npc:FindFirstChild("Humanoid") and npc.Humanoid.Health > 0 then
+                local root = npc:FindFirstChild("HumanoidRootPart") or npc.PrimaryPart
+                if root and (root.Position - hrp.Position).Magnitude <= auraRadius then
+                    local now = tick()
+                    if lastHit[npc] and now - lastHit[npc] < auraDelay then continue end
+                    lastHit[npc] = now
+                    -- Teleporta levemente acima do NPC e causa dano
+                    hrp.CFrame = CFrame.new(root.Position + Vector3.new(0,5,0))
+                    pcall(function()
+                        npc.Humanoid:TakeDamage(10)
+                    end)
+                end
+            end
+        end
     end
-    if auraPart then
-        auraPart:Destroy()
-        auraPart = nil
-    end
-    lastAuraHit = {}
-end
-
-local function onAuraTouch(hit)
-    if not killAura then return end
-    local model = hit:FindFirstAncestorOfClass("Model")
-    if not model or model == char then return end
-    local hum = model:FindFirstChild("Humanoid")
-    if not hum or hum.Health <= 0 then return end
-    local now = tick()
-    if lastAuraHit[hum] and now - lastAuraHit[hum] < auraDamageDelay then return end
-    lastAuraHit[hum] = now
-    pcall(function()
-        hum:TakeDamage(10)
-    end)
-end
-
-local function startKillAura()
-    createAura()
-    auraConnection = auraPart.Touched:Connect(onAuraTouch)
-end
-
-local function stopKillAura()
-    removeAura()
-end
+end)
 
 -- =========================
 -- AUTO REBIRTH
-local autoRebirth = false
-local lastWins = player:GetAttribute("Wins") or 0
-local rebirthRemote
-for _, v in pairs(ReplicatedStorage:GetDescendants()) do
-    if v:IsA("RemoteEvent") and v.Name:lower():find("rebirth") then
-        rebirthRemote = v
-        break
-    end
-end
-
 task.spawn(function()
     while task.wait(2) do
         if not autoRebirth or not rebirthRemote then continue end
@@ -261,7 +229,7 @@ speedButton.MouseButton1Click:Connect(function()
 end)
 
 -- =========================
--- AUTO WIN / KILL AURA / REBIRTH BOTÕES
+-- BOTÕES PRINCIPAIS
 local tpBtn = createButton("AUTO WIN: OFF", 20)
 tpBtn.MouseButton1Click:Connect(function()
     tpEnabled = not tpEnabled
@@ -275,7 +243,6 @@ auraBtn.MouseButton1Click:Connect(function()
     killAura = not killAura
     auraBtn.Text = killAura and "KILL AURA: ON" or "KILL AURA: OFF"
     auraBtn.BackgroundColor3 = killAura and Color3.fromRGB(0,170,0) or Color3.fromRGB(35,35,35)
-    if killAura then startKillAura() else stopKillAura() end
 end)
 
 local rebBtn = createButton("AUTO REBIRTH: OFF", 120)
@@ -296,5 +263,4 @@ humanoid.Died:Connect(function()
     tpEnabled = false
     stopFly()
     stopTP()
-    stopKillAura()
 end)
