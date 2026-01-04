@@ -1,13 +1,12 @@
 -- =========================
--- 🌑 NightShadow Hub - Executor Delta Melhorado
--- Auto Farm + Kill Aura + Fly + Infinite Jump + Speed + NPC ESP
+-- 🌑 NightShadow Hub - Executor Delta Confiável
+-- Infinite Jump + Speed + NPC ESP
 -- =========================
 
 -- SERVIÇOS
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 
 -- PLAYER E CHARACTER
 local player = Players.LocalPlayer or Players.PlayerAdded:Wait()
@@ -22,26 +21,13 @@ player.CharacterAdded:Connect(function(c)
 end)
 
 -- CONFIGURAÇÃO
-local autoFarm = false
-local killAura = false
-local auraRadius = 12
-local auraDamage = 15
-local auraDelay = 0.2
-local farmHeight = 6
-
-local flying = false
-local flySpeed = 80
-local flyVelocity = Instance.new("BodyVelocity")
-flyVelocity.MaxForce = Vector3.new(1e5,1e5,1e5)
-flyVelocity.Velocity = Vector3.zero
-flyVelocity.Parent = hrp
-
 local infJump = false
 local speeds = {16,50,100,200}
 local speedIndex = 1
 
 local npcESPEnabled = false
 local espBoxes = {}
+local npcFolderName = "NPCs" -- Mude para o nome correto da pasta de inimigos do jogo
 
 -- =========================
 -- GUI
@@ -68,80 +54,6 @@ local function createButton(text, y)
 end
 
 -- =========================
--- FUNÇÕES DE NPC (adaptável)
-local npcFolderName = "NPCs" -- mude para o nome real da pasta de NPCs do jogo
-
-local function getNPCs()
-    if workspace:FindFirstChild(npcFolderName) then
-        return workspace[npcFolderName]:GetChildren()
-    end
-    return {}
-end
-
-local function getClosestNPC()
-    local closest, dist = nil, math.huge
-    for _, npc in pairs(getNPCs()) do
-        local root = npc:FindFirstChild("HumanoidRootPart")
-        local hum = npc:FindFirstChild("Humanoid")
-        if root and hum and hum.Health > 0 then
-            local d = (root.Position - hrp.Position).Magnitude
-            if d < dist then
-                dist = d
-                closest = npc
-            end
-        end
-    end
-    return closest
-end
-
--- =========================
--- AUTO FARM
-RunService.Heartbeat:Connect(function()
-    if autoFarm and hrp then
-        local npc = getClosestNPC()
-        if npc and npc:FindFirstChild("HumanoidRootPart") then
-            hrp.CFrame = CFrame.new(npc.HumanoidRootPart.Position + Vector3.new(0,farmHeight,0), npc.HumanoidRootPart.Position)
-        end
-    end
-end)
-
--- =========================
--- KILL AURA
-task.spawn(function()
-    while task.wait(auraDelay) do
-        if killAura then
-            for _, npc in pairs(getNPCs()) do
-                local hum = npc:FindFirstChild("Humanoid")
-                local root = npc:FindFirstChild("HumanoidRootPart")
-                if hum and root and hum.Health > 0 then
-                    if (root.Position - hrp.Position).Magnitude <= auraRadius then
-                        -- Método genérico: reduzir saúde do Humanoid diretamente
-                        hum.Health = hum.Health - auraDamage
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- =========================
--- FLY (BodyVelocity)
-RunService.RenderStepped:Connect(function()
-    if flying and hrp then
-        local cam = workspace.CurrentCamera
-        local move = Vector3.zero
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + cam.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - cam.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - cam.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + cam.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0,1,0) end
-        flyVelocity.Velocity = move.Magnitude > 0 and move.Unit * flySpeed or Vector3.zero
-    else
-        flyVelocity.Velocity = Vector3.zero
-    end
-end)
-
--- =========================
 -- INFINITE JUMP
 UserInputService.JumpRequest:Connect(function()
     if infJump and humanoid then
@@ -151,6 +63,13 @@ end)
 
 -- =========================
 -- NPC ESP
+local function getNPCs()
+    if workspace:FindFirstChild(npcFolderName) then
+        return workspace[npcFolderName]:GetChildren()
+    end
+    return {}
+end
+
 RunService.RenderStepped:Connect(function()
     if npcESPEnabled then
         for _, npc in pairs(getNPCs()) do
@@ -177,31 +96,13 @@ end)
 
 -- =========================
 -- BOTÕES
-local autoBtn = createButton("AUTO FARM: OFF", 20)
-autoBtn.MouseButton1Click:Connect(function()
-    autoFarm = not autoFarm
-    autoBtn.Text = autoFarm and "AUTO FARM: ON" or "AUTO FARM: OFF"
-end)
-
-local auraBtn = createButton("KILL AURA: OFF", 70)
-auraBtn.MouseButton1Click:Connect(function()
-    killAura = not killAura
-    auraBtn.Text = killAura and "KILL AURA: ON" or "KILL AURA: OFF"
-end)
-
-local flyBtn = createButton("FLY: OFF", 120)
-flyBtn.MouseButton1Click:Connect(function()
-    flying = not flying
-    flyBtn.Text = flying and "FLY: ON" or "FLY: OFF"
-end)
-
-local jumpBtn = createButton("INFINITE JUMP: OFF", 170)
+local jumpBtn = createButton("INFINITE JUMP: OFF", 20)
 jumpBtn.MouseButton1Click:Connect(function()
     infJump = not infJump
     jumpBtn.Text = infJump and "INFINITE JUMP: ON" or "INFINITE JUMP: OFF"
 end)
 
-local speedBtn = createButton("SPEED: 16", 220)
+local speedBtn = createButton("SPEED: 16", 70)
 speedBtn.MouseButton1Click:Connect(function()
     speedIndex = speedIndex + 1
     if speedIndex > #speeds then speedIndex = 1 end
@@ -209,7 +110,7 @@ speedBtn.MouseButton1Click:Connect(function()
     speedBtn.Text = "SPEED: "..speeds[speedIndex]
 end)
 
-local espBtn = createButton("NPC ESP: OFF", 270)
+local espBtn = createButton("NPC ESP: OFF", 120)
 espBtn.MouseButton1Click:Connect(function()
     npcESPEnabled = not npcESPEnabled
     espBtn.Text = npcESPEnabled and "NPC ESP: ON" or "NPC ESP: OFF"
