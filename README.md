@@ -1,5 +1,5 @@
 -- =========================
--- 🌑 NightShadow Hub - Executor Delta Confiável
+-- 🌑 NightShadow Hub - Executor Delta (Blox Fruits Style)
 -- Infinite Jump + Speed + NPC ESP
 -- =========================
 
@@ -27,7 +27,7 @@ local speedIndex = 1
 
 local npcESPEnabled = false
 local espBoxes = {}
-local npcFolderName = "NPCs" -- Mude para o nome correto da pasta de inimigos do jogo
+local npcFolderName = "Enemies" -- Mude para a pasta correta de NPCs do seu jogo
 
 -- =========================
 -- GUI
@@ -37,7 +37,7 @@ gui.Name = "NightShadowHub"
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0,320,0,400)
 frame.Position = UDim2.new(0,20,0.5,-200)
-frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 frame.BorderSizePixel = 0
 Instance.new("UICorner", frame)
 
@@ -48,7 +48,7 @@ local function createButton(text, y)
     b.Text = text
     b.TextScaled = true
     b.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    b.TextColor3 = Color3.new(1,1,1)
+    b.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", b)
     return b
 end
